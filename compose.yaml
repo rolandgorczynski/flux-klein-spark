@@ -1,0 +1,25 @@
+services:
+  flux:
+    build: .
+    image: flux-klein-spark:local
+    platform: linux/arm64
+    gpus: all
+    init: true
+    restart: unless-stopped
+    shm_size: 2gb
+    ports:
+      - "192.168.1.224:7861:7861"
+    environment:
+      TMPDIR: /data/output
+      MODEL_VARIANT: 9B
+      HF_TOKEN_PATH: /run/secrets/hf_token
+    volumes:
+      - ./data/hf-cache:/data/hf-cache
+      - ./data/output:/data/output
+      - ${HOME}/.cache/huggingface/token:/run/secrets/hf_token:ro
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:7861/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 60s
+      retries: 3

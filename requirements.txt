@@ -1,0 +1,15 @@
+# torch/torchvision supplied by NVIDIA's Blackwell ARM64 image.
+diffusers==0.41.0
+transformers==5.20.1
+peft==0.21.2
+accelerate==1.15.0
+gradio==6.30.0
+sentencepiece
+huggingface-hub
+safetensors
+numpy<3
+av
+spandrel==0.4.2
+pillow-heif
+controlnet-aux==0.0.10
+einops
