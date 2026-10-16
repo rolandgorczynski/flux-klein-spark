@@ -1,0 +1,7 @@
+# Use only after the desired models and LoRAs have been downloaded.
+# docker compose -f compose.yaml -f compose.offline.yaml up -d
+services:
+  flux:
+    environment:
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"

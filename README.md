@@ -61,3 +61,48 @@ docker compose run --rm --no-deps --entrypoint python flux check_runtime.py
 
 Die Herkunftslizenz des Anwendungscodes ist laut Space-Metadaten Apache-2.0;
 die Lizenzen des Basismodells und einzelner LoRAs gelten zusätzlich.
+
+## Ohne Hugging-Face-Verbindung starten
+
+Nach dem ersten erfolgreichen Download kann der Modellzugriff auf den lokalen
+Cache beschränkt werden:
+
+```sh
+docker compose -f compose.yaml -f compose.offline.yaml up -d
+```
+
+Neue, noch nicht gespeicherte LoRAs und Zusatzmodelle können in diesem Modus
+nicht von Hugging Face heruntergeladen werden. Einzelne Upscaler verwenden
+andere Download-URLs; für vollständig vom Internet getrennten Betrieb alle
+benötigten Zusatzmodelle vorher laden und die Internetverbindung trennen.
+Die Bildberechnung selbst verwendet immer die lokale GPU und keine Inferenz-API.
+Zum erneuten Herunterladen neuer Modelle `docker compose up -d` ausführen.
+
+## Auf diesem Spark geprüft
+
+FLUX.2 Klein 9B in BF16 auf NVIDIA GB10; vier Schritte, Seed 42,
+synthetisches Ausgangsbild einer blauen Vase:
+
+| Test bei geladenem Modell | Zeit über Gradio-API |
+| --- | --- |
+| 512 × 512, keine LoRA | 5,34 s |
+| 512 × 512, Delight + Consistency | 7,00 s |
+| 1024 × 1024, keine LoRA nach vorheriger LoRA-Nutzung | 16,50 s |
+
+Die Zeiten gelten nur für diese Eingaben und Einstellungen. Der erste Start
+brauchte zusätzlich etwa 21 Minuten Download und mehrere Minuten für die
+Speicherübertragung der Gewichte. Nach Container-Neustarts ist erneut eine
+Ladephase nötig; die Gewichte bleiben im Cache. Pipeline-Laden auf CPU und
+Auflösen beider Test-LoRAs wurden mit `HF_HUB_OFFLINE=1` und
+`TRANSFORMERS_OFFLINE=1` erfolgreich geprüft. Eine komplette GPU-Generierung
+bei getrenntem Netzwerk wurde nicht separat getestet.
+
+Test erneut gegen den laufenden Container ausführen:
+
+```sh
+docker compose exec -T flux python -u - --size 512 --name repeat-test < scripts/test_generation.py
+docker compose exec -T flux python -u - --lora Klein-Delight-Style --lora Klein-Consistency --name lora-test < scripts/test_generation.py
+```
+
+Testergebnisse einschließlich PNG-Dateien und JSON-Zeitmessungen stehen in
+`data/output/`. Alle Tests liefen lokal ohne Inferenz-API.
