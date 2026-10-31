@@ -1206,6 +1206,39 @@ with gr.Blocks() as demo:
 
 
 if __name__ == "__main__":
+    from local_api import start_image_api
+
+    @GPU
+    def generate_api_image(prompt, width, height, seed):
+        import io
+
+        # Reuse the UI pipeline and GPU lock; API requests always use the base model.
+        if LOADED_ADAPTERS:
+            pipe.disable_lora()
+        image = pipe(
+            prompt=prompt, width=width, height=height,
+            num_inference_steps=4, guidance_scale=1.0,
+            generator=torch.Generator(device=device).manual_seed(seed),
+        ).images[0]
+        save_with_metadata(image, {"model": MODEL_REPO, "prompt": prompt, "seed": seed,
+                                   "width": width, "height": height, "steps": 4})
+        output = io.BytesIO()
+        image.save(output, format="PNG")
+        return output.getvalue()
+
+    api_key = os.environ.get("FLUX_API_KEY", "")
+    if api_key and MODEL_VARIANT != "9B":
+        raise ValueError("The image API requires MODEL_VARIANT=9B")
+    start_image_api(api_key, generate_api_image, ready=lambda: pipe.pipeline is not None)
+    if api_key:
+        @GPU
+        def preload_api_model():
+            try:
+                pipe.load()
+            except Exception as exc:
+                print(f"Local API model preloading failed ({type(exc).__name__}); check the model cache", flush=True)
+
+        threading.Thread(target=preload_api_model, daemon=True).start()
     # Gradio 6.0: theme and css go on launch(), not Blocks()
     demo.queue(default_concurrency_limit=1).launch(server_name="0.0.0.0", server_port=7861, css=css, head=head_html, theme=orange_red_theme,
                         mcp_server=False, ssr_mode=False, show_error=True)

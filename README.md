@@ -80,6 +80,35 @@ Zum erneuten Herunterladen neuer Modelle `docker compose up -d` ausführen.
 
 ## Auf diesem Spark geprüft
 
+### Optionale Bild-API für HyCanvas
+
+`compose.api.yaml` aktiviert eine interne OpenAI-kompatible API auf Port 7862.
+Sie nutzt dieselbe FLUX.2-Klein-9B-Pipeline und GPU-Sperre wie die Gradio-Oberfläche,
+lädt also keine zweite Modellinstanz. Ohne `FLUX_API_KEY` bleibt die API aus.
+
+1. Einmal `docker network create hycanvas-ai` ausführen.
+2. In `.env` eine stabile Zufallskennung `FLUX_API_KEY=<openssl rand -hex 32>` setzen.
+3. Mit `docker compose -f compose.yaml -f compose.offline.yaml -f compose.api.yaml up -d --build`
+   starten. Die Gewichte müssen für den Offline-Modus bereits im Cache liegen.
+
+HyCanvas wird ebenfalls mit dem externen Netz `hycanvas-ai` verbunden. Sein
+Bildanbieter erhält die Basis-URL `http://flux-image:7862/v1`, den Modellnamen
+`flux.2-klein-9b` und denselben Schlüssel. Die API veröffentlicht keinen weiteren
+Host-Port. Gradio bleibt unter `http://192.168.1.224:7861` erreichbar.
+
+Unterstützt sind `GET /v1/models` und `POST /v1/images/generations` mit
+Bearer-Authentifizierung. Die Generierung nimmt `prompt`, `model`, `size`, optional
+`seed`, ausschließlich `n=1` und Base64-PNG-Ausgabe an. Bildseiten müssen Vielfache
+von 32 zwischen 256 und 2048 Pixeln sein. Sie verwendet das Basismodell ohne LoRAs
+mit vier Schritten; die Bilder werden auch im lokalen Ausgabeordner gespeichert.
+Bildbearbeitung und Textgenerierung sind über diese API nicht implementiert.
+Parallele API-Generierungen erhalten HTTP 429. Bei aktivierter API lädt das Modell
+automatisch nach dem Start in den Speicher. `/healthz` antwortet bis dahin mit 503
+und danach mit 200; Bildanfragen erhalten während des Ladens ebenfalls 503.
+Nach einem Neustart die Bereitschaft abwarten, bevor HyCanvas Bilder generiert.
+
+API-Tests ohne GPU: `python3 -m unittest test_local_api.py`.
+
 FLUX.2 Klein 9B in BF16 auf NVIDIA GB10; vier Schritte, Seed 42,
 synthetisches Ausgangsbild einer blauen Vase:
 

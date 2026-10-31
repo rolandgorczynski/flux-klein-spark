@@ -1,0 +1,17 @@
+# Optional private API for HyCanvas. Create the shared network once:
+# docker network create hycanvas-ai
+# Set FLUX_API_KEY in .env, then include this file and compose.offline.yaml.
+services:
+  flux:
+    environment:
+      FLUX_API_KEY: ${FLUX_API_KEY:?Set FLUX_API_KEY in .env}
+    expose: ["7862"]
+    networks:
+      default:
+      ai:
+        aliases: [flux-image]
+
+networks:
+  ai:
+    external: true
+    name: hycanvas-ai
